@@ -1,31 +1,39 @@
-import { PropsWithChildren, useState } from 'react';
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { PropsWithChildren } from "react";
+import { StyleSheet, TouchableOpacity } from "react-native";
 
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { ThemedText } from "@/components/ThemedText";
+import { ThemedView } from "@/components/ThemedView";
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "@/hooks/useColorScheme";
 
-export function Collapsible({ children, title }: PropsWithChildren & { title: string }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const theme = useColorScheme() ?? 'light';
+import { Ionicons } from "@expo/vector-icons";
+
+export function Collapsible({
+  children,
+  title,
+  isOpen,
+  onPress,
+}: PropsWithChildren & {
+  title: string;
+  isOpen: boolean;
+  onPress: () => void;
+}) {
+  const theme = useColorScheme() ?? "light";
 
   return (
     <ThemedView>
       <TouchableOpacity
-        style={styles.heading}
-        onPress={() => setIsOpen((value) => !value)}
-        activeOpacity={0.8}>
-        <IconSymbol
-          name="chevron.right"
-          size={18}
-          weight="medium"
-          color={theme === 'light' ? Colors.light.icon : Colors.dark.icon}
-          style={{ transform: [{ rotate: isOpen ? '90deg' : '0deg' }] }}
-        />
-
+        style={[styles.heading, { justifyContent: "space-between" }]}
+        onPress={onPress}
+        activeOpacity={0.8}
+      >
         <ThemedText type="defaultSemiBold">{title}</ThemedText>
+        <Ionicons
+          name={isOpen ? "chevron-up" : "chevron-down"}
+          size={18}
+          color={theme === "light" ? Colors.light.icon : Colors.dark.icon}
+          style={{ marginLeft: 2 }}
+        />
       </TouchableOpacity>
       {isOpen && <ThemedView style={styles.content}>{children}</ThemedView>}
     </ThemedView>
@@ -34,12 +42,13 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
 
 const styles = StyleSheet.create({
   heading: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
+    color: Colors.light.titleText,
   },
   content: {
     marginTop: 6,
-    marginLeft: 24,
+    marginRight: 28,
   },
 });

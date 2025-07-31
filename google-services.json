@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "765194029503",
+    "project_id": "planet-rebag",
+    "storage_bucket": "planet-rebag.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:765194029503:android:81f33fd5081c1c2994b90a",
+        "android_client_info": {
+          "package_name": "com.planetrebag"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBK9291B8qGFbMLksg9MmcW1Ar80_9GmGQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
