@@ -1,33 +1,88 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import tw from "tailwind-react-native-classnames";
 
-import { AntDesign, FontAwesome5, Foundation, Ionicons, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import { Colors } from "@/constants/Colors";
 import { auth } from "@/utils/firebase";
 import { showToast } from "@/utils/toast";
-import { useRouter } from "expo-router";
-import { signOut } from "firebase/auth";
+import {
+  AntDesign,
+  Foundation,
+  Ionicons,
+  MaterialCommunityIcons,
+  MaterialIcons,
+} from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
+import { signOut } from "firebase/auth";
+import { doc, getDoc, getFirestore } from "firebase/firestore";
 
 export default function Profile() {
-    const handleLogout = async () => {
-        try {
-          await signOut(auth);
-           await AsyncStorage.clear();
-          showToast.success("Logged out", "You have been signed out.");
-          router.replace("/screen/(auth)/Login");
-        } catch (error: any) {
-          showToast.error(
-            "Logout failed",
-            error.message || "Something went wrong."
-          );
+  const [userName, setUserName] = useState<string>("User");
+  const [loading, setLoading] = useState(true);
+  const db = getFirestore();
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          let displayName = "User";
+
+          if (currentUser.displayName) {
+            displayName = currentUser.displayName;
+          } else if (currentUser.email) {
+            displayName = currentUser.email.split("@")[0];
+          }
+
+          try {
+            const userDocRef = doc(db, "users", currentUser.uid);
+            const userDoc = await getDoc(userDocRef);
+
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+
+              const fullName = userData.fullName || userData.name;
+              if (fullName) {
+                displayName = fullName;
+              }
+            }
+          } catch (firestoreError) {
+            console.log(
+              "Could not fetch user data from Firestore:",
+              firestoreError
+            );
+          }
+
+          setUserName(displayName);
         }
-      };
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        setUserName("User");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [db]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      await AsyncStorage.clear();
+      showToast.success("Logged out", "You have been signed out.");
+      router.replace("/screen/(auth)/Login");
+    } catch (error: any) {
+      showToast.error(
+        "Logout failed",
+        error.message || "Something went wrong."
+      );
+    }
+  };
   return (
     <ScrollView style={tw`flex-1 bg-white`} contentContainerStyle={tw`pb-8`}>
-        <View style={tw`flex-row items-center my-5 mt-14`}>
+      <View style={tw`flex-row items-center my-5 mt-14`}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
@@ -37,101 +92,197 @@ export default function Profile() {
             { color: Colors.light.titleText },
           ]}
         >
-          Abdullah
+          {loading ? "Profile" : userName}
         </Text>
       </View>
       <View style={tw`px-6 `}>
         {/* Account Section */}
-        <Text style={[tw`mt-6 mb-2 text-lg font-bold`,{color: Colors.light.titleText}]}>
+        <Text
+          style={[
+            tw`mt-6 mb-2 text-lg font-bold`,
+            { color: Colors.light.titleText },
+          ]}
+        >
           Your Account
         </Text>
         <TouchableOpacity
           style={tw`bg-white flex-row justify-between items-center  rounded-lg py-3 `}
-        //   onPress={() => router.navigate("/edit-profile")}
+          onPress={() => router.push("/screen/home/EditProfile/EditProfile")}
         >
           <View style={tw`flex-row items-center`}>
-            <MaterialCommunityIcons name="account-edit-outline" size={24} style={[tw``, { color: Colors.light.titleText }]} />
-            <Text style={[tw`ml-2 text-base`, { color: Colors.light.titleText }]}>Edit Profile</Text>
+            <MaterialCommunityIcons
+              name="account-edit-outline"
+              size={24}
+              style={[tw``, { color: Colors.light.titleText }]}
+            />
+            <Text
+              style={[tw`ml-2 text-base`, { color: Colors.light.titleText }]}
+            >
+              Edit Profile
+            </Text>
           </View>
-          <MaterialIcons name="navigate-next" size={24} style={[tw``, { color: Colors.light.lightgrayText }]} />
+          <MaterialIcons
+            name="navigate-next"
+            size={24}
+            style={[tw``, { color: Colors.light.lightgrayText }]}
+          />
         </TouchableOpacity>
-         <TouchableOpacity
+        <TouchableOpacity
           style={tw`bg-white flex-row justify-between items-center  rounded-lg py-3 `}
-        //   onPress={() => router.navigate("/edit-profile")}
+          onPress={() => router.push("/screen/home/ChangePassword/ChangePassword")}
         >
           <View style={tw`flex-row items-center`}>
-            <MaterialCommunityIcons name="account-key-outline" size={24} style={[tw``, { color: Colors.light.titleText }]} />
-            <Text style={[tw`ml-2 text-base`, { color: Colors.light.titleText }]}>Change Password</Text>
+            <MaterialCommunityIcons
+              name="account-key-outline"
+              size={24}
+              style={[tw``, { color: Colors.light.titleText }]}
+            />
+            <Text
+              style={[tw`ml-2 text-base`, { color: Colors.light.titleText }]}
+            >
+              Change Password
+            </Text>
           </View>
-          <MaterialIcons name="navigate-next" size={24} style={[tw``, { color: Colors.light.lightgrayText }]} />
+          <MaterialIcons
+            name="navigate-next"
+            size={24}
+            style={[tw``, { color: Colors.light.lightgrayText }]}
+          />
         </TouchableOpacity>
         {/* Support Section */}
-        <Text style={[tw`mt-6 mb-2 text-lg font-bold`,{color: Colors.light.titleText}]}>
+        <Text
+          style={[
+            tw`mt-6 mb-2 text-lg font-bold`,
+            { color: Colors.light.titleText },
+          ]}
+        >
           Support
         </Text>
         <View style={tw`bg-white rounded-lg`}>
-         <TouchableOpacity
-          style={tw`bg-white flex-row justify-between items-center  rounded-lg py-3 `}
-          onPress={() => router.push("/screen/home/Faqs/Faqs")}
-        >
-          <View style={tw`flex-row items-center`}>
-            <Foundation name="clipboard-notes" size={24} style={[tw``, { color: Colors.light.titleText }]} />
-            <Text style={[tw`ml-2 text-base`, { color: Colors.light.titleText }]}>FAQs</Text>
-          </View>
-          <MaterialIcons name="navigate-next" size={24} style={[tw``, { color: Colors.light.lightgrayText }]} />
-        </TouchableOpacity>
-         <TouchableOpacity
-          style={tw`bg-white flex-row justify-between items-center  rounded-lg py-3 `}
-        //   onPress={() => router.navigate("/edit-profile")}
-        >
-          <View style={tw`flex-row items-center`}>
-            <MaterialCommunityIcons name="message-question-outline" size={24} style={[tw``, { color: Colors.light.titleText }]} />
-            <Text style={[tw`ml-2 text-base`, { color: Colors.light.titleText }]}>Contact Us</Text>
-          </View>
-          <MaterialIcons name="navigate-next" size={24} style={[tw``, { color: Colors.light.lightgrayText }]} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={tw`bg-white flex-row justify-between items-center  rounded-lg py-3 `}
-          onPress={() => router.push("/screen/home/PrivacyPolicy/PrivacyPolicy")}
-        >
-          <View style={tw`flex-row items-center`}>
-            <AntDesign name="filetext1" size={24} style={[tw``, { color: Colors.light.titleText }]} />
-            <Text style={[tw`ml-2 text-base`, { color: Colors.light.titleText }]}>Privacy Policy</Text>
-          </View>
-          <MaterialIcons name="navigate-next" size={24} style={[tw``, { color: Colors.light.lightgrayText }]} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={tw`bg-white flex-row justify-between items-center  rounded-lg py-3 `}
-        //   onPress={() => router.navigate("/edit-profile")}
-        >
-          <View style={tw`flex-row items-center`}>
-            <AntDesign name="staro" size={24} style={[tw``, { color: Colors.light.titleText }]} />
-            <Text style={[tw`ml-2 text-base`, { color: Colors.light.titleText }]}>Rate This App</Text>
-          </View>
-          <MaterialIcons name="navigate-next" size={24} style={[tw``, { color: Colors.light.lightgrayText }]} />
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={tw`bg-white flex-row justify-between items-center  rounded-lg py-3 `}
+            onPress={() => router.push("/screen/home/Faqs/Faqs")}
+          >
+            <View style={tw`flex-row items-center`}>
+              <Foundation
+                name="clipboard-notes"
+                size={24}
+                style={[tw``, { color: Colors.light.titleText }]}
+              />
+              <Text
+                style={[tw`ml-2 text-base`, { color: Colors.light.titleText }]}
+              >
+                FAQs
+              </Text>
+            </View>
+            <MaterialIcons
+              name="navigate-next"
+              size={24}
+              style={[tw``, { color: Colors.light.lightgrayText }]}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={tw`bg-white flex-row justify-between items-center  rounded-lg py-3 `}
+            //   onPress={() => router.navigate("/edit-profile")}
+          >
+            <View style={tw`flex-row items-center`}>
+              <MaterialCommunityIcons
+                name="message-question-outline"
+                size={24}
+                style={[tw``, { color: Colors.light.titleText }]}
+              />
+              <Text
+                style={[tw`ml-2 text-base`, { color: Colors.light.titleText }]}
+              >
+                Contact Us
+              </Text>
+            </View>
+            <MaterialIcons
+              name="navigate-next"
+              size={24}
+              style={[tw``, { color: Colors.light.lightgrayText }]}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={tw`bg-white flex-row justify-between items-center  rounded-lg py-3 `}
+            onPress={() =>
+              router.push("/screen/home/PrivacyPolicy/PrivacyPolicy")
+            }
+          >
+            <View style={tw`flex-row items-center`}>
+              <AntDesign
+                name="filetext1"
+                size={24}
+                style={[tw``, { color: Colors.light.titleText }]}
+              />
+              <Text
+                style={[tw`ml-2 text-base`, { color: Colors.light.titleText }]}
+              >
+                Privacy Policy
+              </Text>
+            </View>
+            <MaterialIcons
+              name="navigate-next"
+              size={24}
+              style={[tw``, { color: Colors.light.lightgrayText }]}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={tw`bg-white flex-row justify-between items-center  rounded-lg py-3 `}
+            //   onPress={() => router.navigate("/edit-profile")}
+          >
+            <View style={tw`flex-row items-center`}>
+              <AntDesign
+                name="staro"
+                size={24}
+                style={[tw``, { color: Colors.light.titleText }]}
+              />
+              <Text
+                style={[tw`ml-2 text-base`, { color: Colors.light.titleText }]}
+              >
+                Rate This App
+              </Text>
+            </View>
+            <MaterialIcons
+              name="navigate-next"
+              size={24}
+              style={[tw``, { color: Colors.light.lightgrayText }]}
+            />
+          </TouchableOpacity>
         </View>
         {/* Log Out */}
         <View style={tw`mt-6`}>
-         <TouchableOpacity
-          style={tw`bg-white flex-row justify-between items-center  rounded-lg py-3 `}
-          onPress={() => handleLogout()}
-        >
-          <View style={tw`flex-row items-center`}>
-            <MaterialIcons name="login" size={24} style={[tw`text-red-500`, {  }]} />
-            <Text style={[tw`ml-2 text-base font-bold text-red-500`, {  }]}>Logout</Text>
-          </View>
-          <MaterialIcons name="navigate-next" size={24} style={[tw``, { color: Colors.light.lightgrayText }]} />
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={tw`bg-white flex-row justify-between items-center  rounded-lg py-3 `}
+            onPress={() => handleLogout()}
+          >
+            <View style={tw`flex-row items-center`}>
+              <MaterialIcons
+                name="login"
+                size={24}
+                style={[tw`text-red-500`, {}]}
+              />
+              <Text style={[tw`ml-2 text-base font-bold text-red-500`, {}]}>
+                Logout
+              </Text>
+            </View>
+            <MaterialIcons
+              name="navigate-next"
+              size={24}
+              style={[tw``, { color: Colors.light.lightgrayText }]}
+            />
+          </TouchableOpacity>
         </View>
       </View>
       {/* Footer */}
       <View style={tw`mt-12 items-center justify-center`}>
-        <Text style={[tw`text-sm `,{ color: Colors.light.titleText}]}>Terms and Conditions</Text>
-        <Text style={[tw`text-sm mt-1`, { color: Colors.light.grayText }]}>App version 1.0</Text>
+        <Text style={[tw`text-sm `, { color: Colors.light.titleText }]}>
+          Terms and Conditions
+        </Text>
+        <Text style={[tw`text-sm mt-1`, { color: Colors.light.grayText }]}>
+          App version 1.0
+        </Text>
       </View>
     </ScrollView>
   );
 }
-
-

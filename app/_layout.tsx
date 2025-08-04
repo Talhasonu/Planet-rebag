@@ -85,6 +85,14 @@ export default function RootLayout() {
             name="screen/home/PrivacyPolicy/PrivacyPolicy"
             options={{ headerShown: false }}
           />
+           <Stack.Screen
+            name="screen/home/EditProfile/EditProfile"
+            options={{ headerShown: false }}
+          />
+           <Stack.Screen
+            name="screen/home/ChangePassword/ChangePassword"
+            options={{ headerShown: false }}
+          />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="+not-found" />
         </Stack>
