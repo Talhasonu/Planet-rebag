@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/Colors";
+import { useAuth } from "@/contexts/AuthContext";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { auth } from "@/utils/firebase";
 import { showToast } from "@/utils/toast";
@@ -42,6 +43,7 @@ export default function EditProfile() {
   const router = useRouter();
   const db = getFirestore();
   const appState = useRef(AppState.currentState);
+  const { updateProfileImage, refreshUserData } = useAuth();
 
   const {
     control,
@@ -90,17 +92,14 @@ export default function EditProfile() {
             }
           } else {
             console.log(" No user document found in Firestore");
-          
           }
         } catch (error: any) {
           console.log("Firestore access denied:", error.message);
-         
 
           if (error.code === "permission-denied") {
             console.log(
               "Permission denied - you need to update Firestore security rules"
             );
-           
           }
 
           if (currentUser.displayName) {
@@ -147,7 +146,7 @@ export default function EditProfile() {
 
   const openCamera = async () => {
     try {
-      closeModal(); 
+      closeModal();
 
       if (isImagePickerActive) {
         console.log("Image picker already active, ignoring request");
@@ -167,20 +166,20 @@ export default function EditProfile() {
         return;
       }
 
-
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
-        base64: false, 
-        exif: false, 
+        base64: false,
+        exif: false,
       });
-
 
       if (!result.canceled && result.assets && result.assets[0]) {
         console.log("Image captured successfully:", result.assets[0].uri);
-        setProfileImage(result.assets[0].uri);
+        const newImageUri = result.assets[0].uri;
+        setProfileImage(newImageUri);
+        updateProfileImage(newImageUri); // Update context immediately
         showToast.success("Success", "Photo captured successfully!");
       } else {
         console.log("Camera was cancelled or no image selected");
@@ -198,7 +197,7 @@ export default function EditProfile() {
 
   const openGallery = async () => {
     try {
-      closeModal(); 
+      closeModal();
 
       if (isImagePickerActive) {
         console.log("Image picker already active, ignoring request");
@@ -219,21 +218,22 @@ export default function EditProfile() {
         return;
       }
 
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
         base64: false,
-        exif: false, 
+        exif: false,
       });
 
       console.log("Gallery result:", result);
 
       if (!result.canceled && result.assets && result.assets[0]) {
         console.log("Image selected successfully:", result.assets[0].uri);
-        setProfileImage(result.assets[0].uri);
+        const newImageUri = result.assets[0].uri;
+        setProfileImage(newImageUri);
+        updateProfileImage(newImageUri); // Update context immediately
         showToast.success("Success", "Image selected successfully!");
       } else {
         console.log("Gallery was cancelled or no image selected");
@@ -263,6 +263,8 @@ export default function EditProfile() {
         console.log("🔄 Uploading image to Cloudinary...");
         photoURL = await uploadImageToCloudinary(profileImage);
         console.log("✅ Image uploaded successfully:", photoURL);
+        // Update context with the uploaded URL
+        updateProfileImage(photoURL);
       }
 
       await updateProfile(user, {
@@ -271,7 +273,6 @@ export default function EditProfile() {
       });
 
       try {
-
         const userDocRef = doc(db, "users", user.uid);
         const userData = {
           fullName: data.fullName,
@@ -282,7 +283,6 @@ export default function EditProfile() {
           photoURL: photoURL,
           updatedAt: new Date().toISOString(),
         };
-
 
         await setDoc(userDocRef, userData, { merge: true });
 
@@ -296,6 +296,9 @@ export default function EditProfile() {
           );
         }
       }
+
+      // Refresh auth context to ensure all components have latest data
+      await refreshUserData();
 
       showToast.success(
         "Profile updated!",
