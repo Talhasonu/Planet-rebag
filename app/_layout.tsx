@@ -34,6 +34,10 @@ export default function RootLayout() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
+            name="app/index"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="screen/(auth)/Login"
             options={{ headerShown: false }}
           />
