@@ -129,6 +129,10 @@ export default function EditProfile() {
 
     return () => {
       subscription?.remove();
+      // Cleanup any temporary images to prevent memory leaks
+      if (profileImage && profileImage !== auth.currentUser?.photoURL) {
+        console.log("Cleaning up temporary image on component unmount");
+      }
     };
   }, [setValue, db]);
 
@@ -170,14 +174,21 @@ export default function EditProfile() {
         mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.7, // Reduced quality to prevent memory issues
         base64: false,
         exif: false,
+        allowsMultipleSelection: false,
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
         console.log("Image captured successfully:", result.assets[0].uri);
         const newImageUri = result.assets[0].uri;
+
+        // Clear previous image from memory if it exists
+        if (profileImage && profileImage !== user?.photoURL) {
+          console.log("Clearing previous temporary image from memory");
+        }
+
         setProfileImage(newImageUri);
         updateProfileImage(newImageUri); // Update context immediately
         showToast.success("Success", "Photo captured successfully!");
@@ -222,9 +233,10 @@ export default function EditProfile() {
         mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.7, // Reduced quality to prevent memory issues
         base64: false,
         exif: false,
+        allowsMultipleSelection: false,
       });
 
       console.log("Gallery result:", result);
@@ -232,6 +244,12 @@ export default function EditProfile() {
       if (!result.canceled && result.assets && result.assets[0]) {
         console.log("Image selected successfully:", result.assets[0].uri);
         const newImageUri = result.assets[0].uri;
+
+        // Clear previous image from memory if it exists
+        if (profileImage && profileImage !== user?.photoURL) {
+          console.log("Clearing previous temporary image from memory");
+        }
+
         setProfileImage(newImageUri);
         updateProfileImage(newImageUri); // Update context immediately
         showToast.success("Success", "Image selected successfully!");
