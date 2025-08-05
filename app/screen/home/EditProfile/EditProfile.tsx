@@ -7,12 +7,14 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { updateProfile, User } from "firebase/auth";
 import { doc, getDoc, getFirestore, setDoc } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
+  AppState,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StatusBar,
@@ -35,8 +37,11 @@ export default function EditProfile() {
   const [user, setUser] = useState<User | null>(null);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [isImagePickerActive, setIsImagePickerActive] = useState(false);
+  const [showImagePickerModal, setShowImagePickerModal] = useState(false);
   const router = useRouter();
   const db = getFirestore();
+  const appState = useRef(AppState.currentState);
 
   const {
     control,
@@ -84,23 +89,18 @@ export default function EditProfile() {
               setProfileImage(userData.photoURL);
             }
           } else {
-            console.log("❌ No user document found in Firestore");
-            console.log(
-              "📝 This may be normal for new users - document will be created on first save"
-            );
+            console.log(" No user document found in Firestore");
+          
           }
         } catch (error: any) {
-          console.log("❌ Firestore access denied:", error.message);
-          console.log("❌ Error code:", error.code);
-          console.log("❌ Full error:", error);
+          console.log("Firestore access denied:", error.message);
+         
 
           if (error.code === "permission-denied") {
             console.log(
-              "🔒 Permission denied - you need to update Firestore security rules"
+              "Permission denied - you need to update Firestore security rules"
             );
-            console.log(
-              "📋 Go to Firebase Console > Firestore > Rules and update them"
-            );
+           
           }
 
           if (currentUser.displayName) {
@@ -110,11 +110,103 @@ export default function EditProfile() {
       }
     };
 
+    const handleAppStateChange = (nextAppState: any) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === "active"
+      ) {
+        console.log("App has come to the foreground!");
+        setIsImagePickerActive(false);
+      }
+      appState.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange
+    );
+
     loadUserData();
+
+    return () => {
+      subscription?.remove();
+    };
   }, [setValue, db]);
 
   const pickImage = async () => {
     try {
+      setShowImagePickerModal(true);
+    } catch (error) {
+      showToast.error("Error", "Failed to pick image");
+    }
+  };
+
+  const closeModal = () => {
+    setShowImagePickerModal(false);
+  };
+
+  const openCamera = async () => {
+    try {
+      closeModal(); 
+
+      if (isImagePickerActive) {
+        console.log("Image picker already active, ignoring request");
+        return;
+      }
+
+      setIsImagePickerActive(true);
+
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "Sorry, we need camera permissions to take photos!"
+        );
+        setIsImagePickerActive(false);
+        return;
+      }
+
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: false, 
+        exif: false, 
+      });
+
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        console.log("Image captured successfully:", result.assets[0].uri);
+        setProfileImage(result.assets[0].uri);
+        showToast.success("Success", "Photo captured successfully!");
+      } else {
+        console.log("Camera was cancelled or no image selected");
+      }
+    } catch (error: any) {
+      console.error("Camera error:", error);
+      showToast.error(
+        "Error",
+        `Failed to take photo: ${error.message || "Unknown error"}`
+      );
+    } finally {
+      setIsImagePickerActive(false);
+    }
+  };
+
+  const openGallery = async () => {
+    try {
+      closeModal(); 
+
+      if (isImagePickerActive) {
+        console.log("Image picker already active, ignoring request");
+        return;
+      }
+
+      setIsImagePickerActive(true);
+
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -123,21 +215,37 @@ export default function EditProfile() {
           "Permission Required",
           "Sorry, we need camera roll permissions to make this work!"
         );
+        setIsImagePickerActive(false);
         return;
       }
+
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
+        base64: false,
+        exif: false, 
       });
 
-      if (!result.canceled && result.assets[0]) {
+      console.log("Gallery result:", result);
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        console.log("Image selected successfully:", result.assets[0].uri);
         setProfileImage(result.assets[0].uri);
+        showToast.success("Success", "Image selected successfully!");
+      } else {
+        console.log("Gallery was cancelled or no image selected");
       }
-    } catch (error) {
-      showToast.error("Error", "Failed to pick image");
+    } catch (error: any) {
+      console.error("Gallery error:", error);
+      showToast.error(
+        "Error",
+        `Failed to pick image from gallery: ${error.message || "Unknown error"}`
+      );
+    } finally {
+      setIsImagePickerActive(false);
     }
   };
 
@@ -150,7 +258,6 @@ export default function EditProfile() {
 
       setUploading(true);
 
-      // Upload new profile image if selected
       let photoURL = user.photoURL;
       if (profileImage && profileImage !== user.photoURL) {
         console.log("🔄 Uploading image to Cloudinary...");
@@ -158,17 +265,12 @@ export default function EditProfile() {
         console.log("✅ Image uploaded successfully:", photoURL);
       }
 
-      // Update Firebase Auth profile
       await updateProfile(user, {
         displayName: data.fullName,
         photoURL: photoURL,
       });
 
-      // Try to save additional user data to Firestore
       try {
-        console.log("Attempting to save user data to Firestore...");
-        console.log("User ID:", user.uid);
-        console.log("Target collection: users");
 
         const userDocRef = doc(db, "users", user.uid);
         const userData = {
@@ -181,28 +283,24 @@ export default function EditProfile() {
           updatedAt: new Date().toISOString(),
         };
 
-        console.log("Data to save:", userData);
 
         await setDoc(userDocRef, userData, { merge: true });
 
-        console.log("✅ User data saved successfully to Firestore!");
+        console.log(" User data saved successfully to Firestore!");
       } catch (firestoreError: any) {
-        console.error("❌ Firestore error:", firestoreError.message);
+        console.error(" Firestore error:", firestoreError.message);
 
-        // Show user-friendly error message
         if (firestoreError.code === "permission-denied") {
           console.log(
-            "🔒 This is a permissions issue. Check Firestore security rules."
+            "This is a permissions issue. Check Firestore security rules."
           );
         }
-
       }
 
       showToast.success(
         "Profile updated!",
         "Your profile has been updated successfully."
       );
-      
     } catch (error: any) {
       showToast.error(
         "Update failed",
@@ -211,6 +309,83 @@ export default function EditProfile() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const ImagePickerModal = () => {
+    return (
+      <Modal
+        transparent={true}
+        visible={showImagePickerModal}
+        animationType="fade"
+        onRequestClose={closeModal}
+      >
+        <View
+          style={[
+            tw`flex-1 justify-center items-center`,
+            { backgroundColor: "rgba(0,0,0,0.5)" },
+          ]}
+        >
+          <View style={tw`bg-white rounded-2xl p-6 mx-8 w-80 relative`}>
+            <TouchableOpacity
+              style={tw`absolute right-4 top-4 z-10`}
+              onPress={closeModal}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="close" size={24} color={Colors.light.grayText} />
+            </TouchableOpacity>
+
+            <View style={tw`items-center mb-6 mt-2`}>
+              <Text
+                style={[
+                  tw`text-lg font-semibold`,
+                  { color: Colors.light.titleText },
+                ]}
+              >
+                Update Profile Picture
+              </Text>
+            </View>
+
+            <View style={tw`mb-4`}>
+              <TouchableOpacity
+                style={[
+                  tw`p-4 rounded-lg mb-3 items-center border`,
+                  { borderColor: Colors.light.primaryGreen },
+                ]}
+                onPress={openCamera}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    tw`text-base font-semibold`,
+                    { color: Colors.light.primaryGreen },
+                  ]}
+                >
+                  Take a Photo
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  tw`p-4 rounded-lg mb-3 items-center border`,
+                  { borderColor: Colors.light.primaryGreen },
+                ]}
+                onPress={openGallery}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    tw`text-base font-semibold`,
+                    { color: Colors.light.primaryGreen },
+                  ]}
+                >
+                  Choose from Gallery
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
   };
 
   return (
@@ -224,7 +399,6 @@ export default function EditProfile() {
         contentContainerStyle={tw`px-6 pb-8`}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={tw`flex-row items-center my-5 mt-14`}>
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={24} color="black" />
@@ -239,21 +413,20 @@ export default function EditProfile() {
           </Text>
         </View>
 
-        <View style={tw`my-8`}>
+        <View style={tw`my-4 `}>
           <Text
             style={[
-              tw`text-3xl font-bold mb-2`,
+              tw`text-2xl font-bold mb-2`,
               { color: Colors.light.greenText },
             ]}
           >
             Update Profile
           </Text>
-          <Text style={[tw`text-base `, { color: Colors.light.grayText }]}>
+          <Text style={[tw`text-sm `, { color: Colors.light.grayText }]}>
             Update your profile information.
           </Text>
         </View>
 
-        {/* Profile Image Section */}
         <View style={tw`items-center mb-8`}>
           <TouchableOpacity onPress={pickImage} style={tw`relative`}>
             <View
@@ -338,7 +511,6 @@ export default function EditProfile() {
             )}
           </View>
 
-          {/* Email Input (Read-only) */}
           <View style={tw`mb-4`}>
             <Text
               style={[
@@ -374,7 +546,6 @@ export default function EditProfile() {
             </Text>
           </View>
 
-          {/* Username Input */}
           <View style={tw`mb-4`}>
             <Text
               style={[
@@ -424,7 +595,6 @@ export default function EditProfile() {
             )}
           </View>
 
-          {/* Phone Number Input */}
           <View style={tw`mb-4`}>
             <Text
               style={[
@@ -469,7 +639,6 @@ export default function EditProfile() {
             )}
           </View>
 
-          {/* Bio Input */}
           <View style={tw`mb-4`}>
             <Text
               style={[
@@ -517,7 +686,6 @@ export default function EditProfile() {
             )}
           </View>
 
- {/* Save Button */}
           <TouchableOpacity
             style={[
               tw`rounded-lg py-4 items-center mb-6 mt-4`,
@@ -533,8 +701,7 @@ export default function EditProfile() {
               {isSubmitting || uploading ? "Saving..." : "Save Changes"}
             </Text>
           </TouchableOpacity>
-          
-          {/* Cancel Button */}
+
           <TouchableOpacity
             style={[
               tw`rounded-lg py-4 items-center border`,
@@ -551,10 +718,10 @@ export default function EditProfile() {
               Cancel
             </Text>
           </TouchableOpacity>
-
-         
         </View>
       </ScrollView>
+
+      <ImagePickerModal />
     </KeyboardAvoidingView>
   );
 }

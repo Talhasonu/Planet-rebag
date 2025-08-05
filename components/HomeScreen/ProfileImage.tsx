@@ -1,5 +1,6 @@
 import { auth } from "@/utils/firebase";
 import { router } from "expo-router";
+import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, getFirestore } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
@@ -28,12 +29,10 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
       try {
         const currentUser = auth.currentUser;
         if (currentUser) {
-          // First try to get image from Firebase Auth
           if (currentUser.photoURL) {
             setProfileImageUri(currentUser.photoURL);
           }
 
-          // Get user initials from display name or email
           const displayName = currentUser.displayName;
           const email = currentUser.email;
 
@@ -55,12 +54,10 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
             if (userDoc.exists()) {
               const userData = userDoc.data();
 
-              // Use Firestore image if available and different from Auth
               if (userData.photoURL) {
                 setProfileImageUri(userData.photoURL);
               }
 
-              // Update initials from Firestore data if available
               const fullName = userData.fullName || userData.name;
               if (fullName) {
                 const nameInitials = fullName
@@ -76,7 +73,6 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
               "Could not fetch user data from Firestore:",
               firestoreError
             );
-            // Continue with Firebase Auth data
           }
         }
       } catch (error) {
@@ -86,12 +82,24 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
       }
     };
 
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        fetchUserData();
+      } else {
+        setProfileImageUri(null);
+        setUserInitials("A");
+        setLoading(false);
+      }
+    });
+
     if (uri) {
       setProfileImageUri(uri);
       setLoading(false);
     } else {
       fetchUserData();
     }
+
+    return () => unsubscribeAuth();
   }, [uri, db]);
 
   if (loading) {
