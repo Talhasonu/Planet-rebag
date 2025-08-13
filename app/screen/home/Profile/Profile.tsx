@@ -3,6 +3,7 @@ import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import tw from "tailwind-react-native-classnames";
 
 import { Colors } from "@/constants/Colors";
+import { useAuth } from "@/contexts/AuthContext";
 import { auth } from "@/utils/firebase";
 import { showToast } from "@/utils/toast";
 import {
@@ -12,65 +13,27 @@ import {
   MaterialCommunityIcons,
   MaterialIcons,
 } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { signOut } from "firebase/auth";
-import { doc, getDoc, getFirestore } from "firebase/firestore";
 
 export default function Profile() {
+  const { userInfo,  loading: authLoading } = useAuth();
   const [userName, setUserName] = useState<string>("User");
   const [loading, setLoading] = useState(true);
-  const db = getFirestore();
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const currentUser = auth.currentUser;
-        if (currentUser) {
-          let displayName = "User";
-
-          if (currentUser.displayName) {
-            displayName = currentUser.displayName;
-          } else if (currentUser.email) {
-            displayName = currentUser.email.split("@")[0];
-          }
-
-          try {
-            const userDocRef = doc(db, "users", currentUser.uid);
-            const userDoc = await getDoc(userDocRef);
-
-            if (userDoc.exists()) {
-              const userData = userDoc.data();
-
-              const fullName = userData.fullName || userData.name;
-              if (fullName) {
-                displayName = fullName;
-              }
-            }
-          } catch (firestoreError) {
-            console.log(
-              "Could not fetch user data from Firestore:",
-              firestoreError
-            );
-          }
-
-          setUserName(displayName);
-        }
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-        setUserName("User");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUserData();
-  }, [db]);
+    if (userInfo) {
+      setUserName(userInfo.displayName || userInfo.fullName || "User");
+      setLoading(false);
+    } else if (!authLoading) {
+      setLoading(false);
+    }
+  }, [userInfo, authLoading]);
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      await AsyncStorage.clear();
+      // await clearUserInfo(); // Clear user info from context and AsyncStorage
       showToast.success("Logged out", "You have been signed out.");
       router.replace("/screen/(auth)/Login");
     } catch (error: any) {
@@ -129,7 +92,9 @@ export default function Profile() {
         </TouchableOpacity>
         <TouchableOpacity
           style={tw`bg-white flex-row justify-between items-center  rounded-lg py-3 `}
-          onPress={() => router.push("/screen/home/ChangePassword/ChangePassword")}
+          onPress={() =>
+            router.push("/screen/home/ChangePassword/ChangePassword")
+          }
         >
           <View style={tw`flex-row items-center`}>
             <MaterialCommunityIcons
@@ -275,7 +240,7 @@ export default function Profile() {
         </View>
       </View>
       {/* Footer */}
-      <View style={tw`mt-12 items-center justify-center`}>
+      <View style={tw`mt-20 items-center justify-center`}>
         <Text style={[tw`text-sm `, { color: Colors.light.titleText }]}>
           Terms and Conditions
         </Text>

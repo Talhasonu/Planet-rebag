@@ -5,7 +5,7 @@ export default function TabBarBackground() {
   return (
     <View style={styles.container}>
       <Tabbg
-        width="360px"
+        width="100%"
         height="120px"
         style={{
           marginBottom: 80,

@@ -2,7 +2,8 @@ import { Colors } from "@/constants/Colors";
 import { auth } from "@/utils/firebase";
 import { showToast } from "@/utils/toast";
 import { useRouter } from "expo-router";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, getFirestore, setDoc } from "firebase/firestore";
 import React, { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
@@ -29,6 +30,7 @@ export default function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
+  const db = getFirestore();
 
   const {
     control,
@@ -55,7 +57,31 @@ export default function SignUpScreen() {
   const onSubmit = async (data: SignUpFormData) => {
     try {
       if (signUpType === "email") {
-        await createUserWithEmailAndPassword(auth, data.email, data.password);
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          data.email,
+          data.password
+        );
+        const user = userCredential.user;
+
+        // Update Firebase Auth profile
+        await updateProfile(user, {
+          displayName: data.fullName,
+        });
+
+        // Create user document in Firestore with default values
+        const userDocRef = doc(db, "users", user.uid);
+        await setDoc(userDocRef, {
+          uid: user.uid,
+          email: data.email,
+          fullName: data.fullName,
+          phoneNumber: data.mobileNumber || "", // Include mobile number if provided
+          role: "user", // Default role
+          status: "enabled", // Default status
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+
         showToast.success("Account created!", "You can now log in.");
         router.push("/screen/(auth)/Login");
       } else {

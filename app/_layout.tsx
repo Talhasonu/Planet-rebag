@@ -32,10 +32,7 @@ export default function RootLayout() {
             name="screen/home/homeScreen"
             options={{ headerShown: false }}
           />
-          <Stack.Screen
-            name="app/index"
-            options={{ headerShown: false }}
-          />
+          <Stack.Screen name="app/index" options={{ headerShown: false }} />
           <Stack.Screen
             name="screen/(auth)/Login"
             options={{ headerShown: false }}
@@ -72,7 +69,7 @@ export default function RootLayout() {
             name="screen/home/TransactionHistory/TransactionHistory"
             options={{ headerShown: false }}
           />
-           <Stack.Screen
+          <Stack.Screen
             name="screen/home/PendingRedeem/PendingRedeem"
             options={{ headerShown: false }}
           />
@@ -84,16 +81,36 @@ export default function RootLayout() {
             name="screen/home/Faqs/Faqs"
             options={{ headerShown: false }}
           />
-           <Stack.Screen
+          <Stack.Screen
             name="screen/home/PrivacyPolicy/PrivacyPolicy"
             options={{ headerShown: false }}
           />
-           <Stack.Screen
+          <Stack.Screen
             name="screen/home/EditProfile/EditProfile"
             options={{ headerShown: false }}
           />
-           <Stack.Screen
+          <Stack.Screen
             name="screen/home/ChangePassword/ChangePassword"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="screen/admin/AdminDashboard"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="screen/admin/UserManagement"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="screen/admin/TotalUsers"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="screen/admin/TodayLogin"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="screen/admin/OneMonthLogin"
             options={{ headerShown: false }}
           />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

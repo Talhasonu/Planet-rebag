@@ -1,8 +1,10 @@
 import { Colors } from "@/constants/Colors";
+import { useAuth } from "@/contexts/AuthContext";
 import { auth } from "@/utils/firebase";
 import { showToast } from "@/utils/toast";
 import { useRouter } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc, getFirestore } from "firebase/firestore";
 import React, { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
@@ -20,6 +22,7 @@ import tw from "tailwind-react-native-classnames";
 import At from "../../../assets/images/attherate.svg";
 import Instagram from "../../../assets/images/instagram.svg";
 import Phone from "../../../assets/images/phone.svg";
+
 interface LoginFormData {
   email: string;
   mobileNumber: string;
@@ -31,6 +34,8 @@ export default function LoginScreen() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const { saveUserInfo } = useAuth();
+  const db = getFirestore();
 
   const {
     control,
@@ -56,9 +61,96 @@ export default function LoginScreen() {
   const onSubmit = async (data: LoginFormData) => {
     try {
       if (loginType === "email") {
-        await signInWithEmailAndPassword(auth, data.email, data.password);
+        const userCredential = await signInWithEmailAndPassword(
+          auth,
+          data.email,
+          data.password
+        );
+        const user = userCredential.user;
+
         showToast.success("Login successful!", "Welcome back.");
-        router.replace("/(tabs)");
+
+        // Fetch user role and info from Firestore
+        try {
+          const userDocRef = doc(db, "users", user.uid);
+          const userDoc = await getDoc(userDocRef);
+
+          let userRole: "user" | "admin" = "user";
+          let userStatus: "enabled" | "disabled" = "enabled";
+          let fullName =
+            user.displayName || user.email?.split("@")[0] || "User";
+          let phoneNumber = "";
+          let username = "";
+
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            userRole = userData.role || "user";
+            userStatus = userData.status || "enabled";
+            fullName = userData.fullName || userData.name || fullName;
+            phoneNumber = userData.phoneNumber?.toString() || "";
+            username = userData.userName || userData.username || "";
+          }
+
+          // Check if user is disabled
+          if (userStatus === "disabled") {
+            showToast.error(
+              "Account Disabled",
+              "Your account has been disabled. Please contact support."
+            );
+            return;
+          }
+
+          // Create user info object
+          const userInfo = {
+            uid: user.uid,
+            email: user.email || "",
+            displayName: fullName,
+            role: userRole,
+            status: userStatus,
+            profileImageUri: user.photoURL || undefined,
+            initials: fullName
+              .split(" ")
+              .map((name) => name.charAt(0).toUpperCase())
+              .join("")
+              .substring(0, 2),
+            fullName,
+            phoneNumber,
+            username,
+          };
+
+          // 🔥 UPDATE LOGIN TIMESTAMP IN FIREBASE
+          try {
+            const { updateDoc } = await import("firebase/firestore");
+            const userDocRef = doc(db, "users", user.uid);
+            await updateDoc(userDocRef, {
+              lastLoginAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+            console.log(
+              "✅ Login timestamp updated successfully for",
+              user.email
+            );
+          } catch (updateError) {
+            console.error("❌ Failed to update login timestamp:", updateError);
+          }
+
+          // Save user info to context and AsyncStorage
+          await saveUserInfo(userInfo);
+
+          // Navigate based on role
+          if (userRole === "admin") {
+            router.replace("/(tabs)");
+          } else {
+            router.replace("/(tabs)");
+          }
+        } catch (firestoreError) {
+          console.log(
+            "Could not fetch user role from Firestore:",
+            firestoreError
+          );
+          // Default to regular user navigation
+          router.replace("/(tabs)");
+        }
       } else {
         showToast.error("Mobile login not implemented");
       }
@@ -239,7 +331,7 @@ export default function LoginScreen() {
               }
               render={({ field: { onChange, onBlur, value } }) => (
                 <TextInput
-                  key={loginType} 
+                  key={loginType}
                   style={[
                     tw` rounded-lg px-4 py-4 `,
                     {

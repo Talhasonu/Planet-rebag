@@ -1,3 +1,4 @@
+import UserRoleStatus from "@/components/UserRoleStatus";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
@@ -43,7 +44,7 @@ export default function EditProfile() {
   const router = useRouter();
   const db = getFirestore();
   const appState = useRef(AppState.currentState);
-  const { updateProfileImage, refreshUserData } = useAuth();
+  const { updateProfileImage, refreshUserData, userInfo } = useAuth();
 
   const {
     control,
@@ -292,6 +293,14 @@ export default function EditProfile() {
 
       try {
         const userDocRef = doc(db, "users", user.uid);
+
+        // Get current user data to preserve role and status
+        const currentUserDoc = await getDoc(userDocRef);
+        let existingData: any = {};
+        if (currentUserDoc.exists()) {
+          existingData = currentUserDoc.data();
+        }
+
         const userData = {
           fullName: data.fullName,
           email: data.email,
@@ -299,6 +308,9 @@ export default function EditProfile() {
           phoneNumber: data.phoneNumber,
           bio: data.bio,
           photoURL: photoURL,
+          // Preserve existing role and status
+          role: existingData.role || "user",
+          status: existingData.status || "enabled",
           updatedAt: new Date().toISOString(),
         };
 
@@ -483,6 +495,8 @@ export default function EditProfile() {
             Tap to change profile picture
           </Text>
         </View>
+
+      
 
         {/* Form */}
         <View style={tw`mb-6`}>

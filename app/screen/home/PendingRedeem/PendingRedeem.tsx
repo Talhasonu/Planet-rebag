@@ -41,7 +41,7 @@ export default function PendingRedeem() {
   return (
     <View style={[tw`flex-1 bg-white`, { paddingTop: 40 }]}>
       {/* Top padding for status bar */}
-      <View style={tw`flex-row items-center my-5 `}>
+      <View style={tw`flex-row items-center  mb-7 `}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
